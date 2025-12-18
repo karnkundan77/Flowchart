@@ -1,0 +1,5 @@
+{
+  "name": "FlowGen AI",
+  "description": "An intelligent flowchart generator that converts natural language process descriptions into interactive, editable flowcharts using Google Gemini.",
+  "requestFramePermissions": []
+}
