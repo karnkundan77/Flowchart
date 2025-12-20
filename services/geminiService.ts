@@ -37,7 +37,8 @@ const SOP_SCHEMA = {
 };
 
 export const generateFlowFromText = async (processDescription: string, includeSOP: boolean = true): Promise<FlowData> => {
-  const modelId = "gemini-3-flash-preview"; 
+  // Use gemini-3-pro-preview for complex reasoning and structure generation tasks
+  const modelId = "gemini-3-pro-preview"; 
 
   const baseInstruction = `
     You are an expert Business Process Analyst and Creative Technical Writer.
@@ -115,38 +116,39 @@ export const generateFlowFromText = async (processDescription: string, includeSO
 };
 
 export const refineSOPFromFlow = async (nodes: FlowNode[], edges: FlowEdge[]): Promise<SOP> => {
-  const modelId = "gemini-3-flash-preview";
+  // Use gemini-3-pro-preview for advanced reasoning when updating existing documents
+  const modelId = "gemini-3-pro-preview";
   
-  // High-fidelity structural summary for precise refinement
   const nodeDict = nodes.reduce((acc, n) => ({ ...acc, [n.id]: n }), {} as Record<string, FlowNode>);
   const structureSummary = `
-    THE USER HAS CUSTOMIZED THE FLOWCHART. YOU MUST UPDATE THE SOP TO MATCH THIS EXACT NEW STRUCTURE:
+    STRICT TASK: UPDATE THE SOP TO MATCH THE FLOWCHART LABELS.
+    The user has MANUALLY EDITED the flowchart labels. You MUST reflect these EXACT labels in the updated SOP.
     
-    STRICT NODE LIST:
-    ${nodes.map(n => `- Node [${n.id}]: TYPE="${n.type.toUpperCase()}", LABEL="${n.label}"`).join('\n')}
+    NEW SOURCE OF TRUTH (FLOWCHART):
     
-    STRICT CONNECTION LIST (FOLLOW THESE PATHS EXACTLY):
+    NODES (The SOP procedure steps MUST use these exact labels):
+    ${nodes.map(n => `- Node [${n.id}]: "${n.label}" (Type: ${n.type})`).join('\n')}
+    
+    SEQUENCE (The SOP procedure MUST follow this logic):
     ${edges.map(e => {
       const src = nodeDict[e.source];
       const tgt = nodeDict[e.target];
-      return `- "${src?.label || 'Unknown'}" leads to "${tgt?.label || 'Unknown'}"`;
+      return `- From "${src?.label || 'Step'}" go to "${tgt?.label || 'Next Step'}"`;
     }).join('\n')}
     
-    INSTRUCTIONS:
-    1. Do not use old context if it conflicts with the labels or connections above.
-    2. Ensure every label mentioned above appears in the relevant SOP section.
-    3. If nodes were deleted or renamed by the user, ensure the SOP reflects those specific changes.
+    INSTRUCTIONS FOR REFINEMENT:
+    - If a label has changed (e.g., from "Drafting" to "Review Phase"), you MUST use "Review Phase" in the SOP content.
+    - Rewrite all procedure sections to match this sequence and naming.
+    - Use HTML tags (<b>, <u>, <ul>, <table>) for formatting as before.
   `;
 
   const systemInstruction = `
     You are an expert Technical Process Writer. 
-    Your task is to REVISE a Standard Operating Procedure (SOP) based on a manually customized flowchart structure.
+    You are refining a Standard Operating Procedure based on a CUSTOMIZED flowchart.
     
     ${SOP_INSTRUCTION}
     
-    The structure provided in the prompt is the ABSOLUTE SOURCE OF TRUTH. 
-    If a node label has changed, the SOP must use the NEW label.
-    Output strictly valid JSON matching the SOP schema.
+    The labels provided in the prompt are the ABSOLUTE FINAL terminology. Do not hallucinate previous versions of the labels.
   `;
 
   try {
